@@ -1,7 +1,7 @@
 {
-  "name": "guestbook-dapp",
+  "name": "donaciones-dapp",
   "version": "1.0.0",
-  "description": "",
+  "description": "Dapp de donaciones transparentes en Sepolia (Solidity + Hardhat + ethers.js).",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

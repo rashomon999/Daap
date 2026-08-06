@@ -1,8 +1,8 @@
 /**
  * Frontend de la demo "Donaciones Transparentes".
  *
- * Mismo patrón que app.js (Guestbook): ethers.js + MetaMask + un contrato.
- * La diferencia interesante para la clase: aquí SÍ se mueve valor real
+ * Patrón estándar de dapp: ethers.js + MetaMask + un contrato.
+ * Lo interesante para la clase: aquí SÍ se mueve valor real
  * (ETH de prueba) y el panel de la ONG solo aparece si la wallet conectada
  * es la que desplegó el contrato — eso también lo decide el contrato, no
  * el frontend (el frontend solo lo oculta visualmente; el contrato es el

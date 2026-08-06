@@ -4,10 +4,9 @@
  * Único uso real de este proyecto:
  *   npx hardhat run scripts/deploy-donations.js --network sepolia
  *
- * Guarda la dirección en frontend/donations-address.json (independiente del
- * Guestbook, que usa su propio frontend/contract-address.json) — pero SOLO
- * cuando la red es "sepolia", para no pisar por accidente la dirección
- * pública con la de un despliegue de prueba.
+ * Guarda la dirección en frontend/donations-address.json — pero SOLO cuando
+ * la red es "sepolia", para no pisar por accidente la dirección pública con
+ * la de un despliegue de prueba (ej. la red efímera que usan los tests).
  */
 const fs = require("fs");
 const path = require("path");

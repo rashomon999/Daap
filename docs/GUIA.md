@@ -1,10 +1,8 @@
-# Guía paso a paso: dos dapps con blockchain (100% gratis)
+# Guía paso a paso: Donaciones Transparentes (100% gratis)
 
-> **Proyecto:** dos aplicaciones descentralizadas (dapps) desplegadas en Sepolia, la testnet pública de Ethereum:
+> **Proyecto:** una dapp — sistema de donaciones para una ONG ficticia donde cada donación y cada retiro quedan públicamente registrados en la blockchain, con una razón obligatoria para cada retiro.
 >
-> - **💚 Donaciones Transparentes** — sistema de donaciones para una ONG ficticia donde cada donación y cada retiro quedan públicamente registrados. Pensado para mostrar en clase por qué blockchain resuelve un problema real de confianza.
-
-> **Costo total: $0.** Todo corre en Sepolia con ETH de prueba, gratis de un faucet — nunca dinero real.
+> **Costo total: $0.** Todo corre en Sepolia, la testnet pública de Ethereum, con ETH de prueba gratis de un faucet — nunca dinero real.
 
 ---
 
@@ -19,25 +17,29 @@ Una **dapp** (decentralized application) tiene dos mitades:
 
 La diferencia con una app tradicional: no hay servidor tuyo. El "servidor" es la blockchain, y la "base de datos" es el estado del contrato.
 
+### El problema que resuelve esta dapp en particular
+
+Cuando donas a una ONG tradicional, tienes que **confiar** en que usan el dinero como dicen — no hay forma de comprobarlo tú mismo. Con este contrato no hace falta confiar: se puede **verificar matemáticamente** que todo lo donado menos todo lo retirado da exactamente el balance que hay en el contrato, y cada retiro exige una razón que queda grabada para siempre. Es un ejemplo de por qué blockchain resuelve un problema real más allá de "mover dinero entre computadoras": integridad de registros que nadie controla unilateralmente.
+
 ### Vocabulario mínimo
 
 | Término | Qué es |
 |---|---|
 | **Wallet** | Tu identidad: un par de llaves criptográficas. La dirección (`0xabc...`) es pública; la llave privada firma transacciones. |
-| **Transacción** | Cualquier acción que *modifica* la blockchain (escribir un mensaje). Cuesta **gas**. |
-| **Gas** | La comisión que se paga por ejecutar código en la blockchain. En tu red local es ficticio → gratis. |
+| **Transacción** | Cualquier acción que *modifica* la blockchain (donar, retirar). Cuesta **gas**. |
+| **Gas** | La comisión que se paga por ejecutar código en la blockchain. En una testnet es ETH de prueba → gratis. |
 | **Llamada `view`** | Leer datos sin modificar nada. **Siempre gratis**, en cualquier red. |
 | **Desplegar (deploy)** | Subir el contrato compilado a la blockchain. Es una transacción especial que le asigna una dirección. |
 | **ABI** | La "carta de presentación" del contrato: lista de funciones y sus parámetros, para que JavaScript sepa cómo llamarlas. |
 | **Testnet** | Copia de la red real pero con ETH ficticio que pides gratis en un "faucet". Para probar antes de gastar dinero real. |
-| **Hardhat** | El entorno de desarrollo: compila Solidity, corre una blockchain local y ejecuta tests. Todo en JavaScript. |
+| **Hardhat** | El entorno de desarrollo: compila Solidity, corre pruebas y despliega. Todo en JavaScript. |
 | **ethers.js** | La librería JS para hablar con la blockchain (desde tests, scripts y el frontend). |
 
 ### ¿Por qué es gratis aprender esto?
 
-- La **red local de Hardhat** corre en tu máquina: 20 cuentas con 10,000 ETH ficticios cada una.
-- Las **testnets** (ej. Sepolia) regalan ETH de prueba en faucets.
-- Solo pagarías al desplegar en **mainnet** (la red real), y eso es opcional y para el final.
+- Las **pruebas automáticas** (`npx hardhat test`) corren en una blockchain efímera en memoria — cero costo, cero configuración.
+- Las **testnets** (Sepolia) regalan ETH de prueba en faucets.
+- Solo pagarías al desplegar en **mainnet** (la red real), y eso es opcional y no es parte de este proyecto.
 
 ---
 
@@ -51,15 +53,16 @@ La diferencia con una app tradicional: no hay servidor tuyo. El "servidor" es la
 ### Crear el proyecto
 
 ```bash
-mkdir guestbook-dapp && cd guestbook-dapp
+mkdir donaciones-dapp && cd donaciones-dapp
 npm init -y
-npm install --save-dev hardhat@^2.26.0 @nomicfoundation/hardhat-toolbox@^5.0.0
+npm install --save-dev hardhat@^2.26.0 @nomicfoundation/hardhat-toolbox@^5.0.0 dotenv
 ```
 
 **¿Qué instalamos?**
 
 - `hardhat`: el entorno de desarrollo.
 - `@nomicfoundation/hardhat-toolbox`: paquete todo-en-uno que trae ethers.js, chai (aserciones), mocha (tests) y utilidades de red.
+- `dotenv`: para leer tu archivo `.env` con la configuración de Sepolia sin escribir secretos en el código.
 
 Crea las carpetas del proyecto:
 
@@ -69,12 +72,10 @@ mkdir contracts test scripts frontend
 
 - `contracts/` → código Solidity
 - `test/` → pruebas en JavaScript
-- `scripts/` → scripts de despliegue e interacción
+- `scripts/` → script de despliegue
 - `frontend/` → la página web
 
 ### Configurar Hardhat
-
-Crea `hardhat.config.js` en la raíz (ver el archivo del proyecto). Lo esencial:
 
 ```js
 require("@nomicfoundation/hardhat-toolbox");
@@ -92,26 +93,51 @@ module.exports = {
 };
 ```
 
-No hace falta declarar ninguna red "local" — para eso ya está la red efímera `hardhat` que Hardhat trae integrada (la usan automáticamente `npx hardhat test` y cualquier `npx hardhat run script.js` sin `--network`). Ver la **Parte 4** para por qué este proyecto evita a propósito un nodo local persistente.
+No hace falta declarar ninguna red "local" — para eso ya está la red efímera `hardhat` que Hardhat trae integrada, y la usan automáticamente `npx hardhat test` y cualquier `npx hardhat run script.js` sin `--network`.
 
-> **Nota:** el `hardhat.config.js` de este proyecto incluye un bloque extra que carga el compilador desde npm. Solo fue necesario porque el entorno de nube donde se creó no podía descargar el compilador. **En tu computador puedes borrar ese bloque** — Hardhat descarga el compilador automáticamente la primera vez.
+> **Nota:** el `hardhat.config.js` de este proyecto incluye un bloque extra que carga el compilador desde npm en vez de descargarlo. Solo fue necesario porque el entorno donde se creó este proyecto no tenía acceso a `binaries.soliditylang.org`. Si tu computador sí tiene internet normal, puedes borrar ese bloque — Hardhat descarga el compilador solo.
 
 ---
 
 ## Parte 2 — El contrato inteligente
 
-Abre `contracts/Guestbook.sol`. Está comentado línea por línea, pero aquí va el mapa mental:
+Abre `contracts/Donations.sol`. El contrato se llama `TransparentDonations` y tiene un solo trabajo: llevar la cuenta de donaciones y retiros de forma que nadie pueda falsificarla.
+
+### El concepto central
+
+El contrato lleva dos contadores públicos:
+
+```solidity
+uint256 public totalDonated;   // suma de todo lo donado, para siempre
+uint256 public totalWithdrawn; // suma de todo lo retirado, para siempre
+```
+
+Y una regla que es imposible de romper porque la garantiza el propio código, no una promesa:
+
+```
+totalDonated - totalWithdrawn == balance real del contrato
+```
+
+Cualquiera puede comprobar esa ecuación en Etherscan sin pedirle permiso a nadie.
 
 ### Estructura del contrato
 
 ```
-contract Guestbook {
-    struct Entry { ... }        ← el "modelo de datos" de una entrada
-    Entry[] private entries;    ← el array donde viven los mensajes (estado)
-    mapping(...) messageCount;  ← diccionario: dirección → nº de mensajes
-    event NewEntry(...);        ← notificación que el frontend puede escuchar
-    function signGuestbook(...) ← ESCRIBIR (transacción, cuesta gas)
-    function getEntries(...)    ← LEER (view, gratis)
+contract TransparentDonations {
+    address public immutable ngo;   ← la wallet de la ONG, fijada al desplegar
+    string public causeName;        ← nombre de la causa, informativo
+
+    struct Donation { ... }         ← una donación: quién, cuánto, mensaje, cuándo
+    struct Withdrawal { ... }       ← un retiro: cuánto, razón obligatoria, cuándo
+
+    event NewDonation(...);         ← se emite en cada donación
+    event FundsWithdrawn(...);      ← se emite en cada retiro
+
+    function donate(...)            ← ESCRIBIR: cualquiera puede donar (payable, cuesta gas)
+    function withdraw(...)          ← ESCRIBIR: solo la ONG, con razón obligatoria
+    function getDonations(...)      ← LEER: historial completo (view, gratis)
+    function getWithdrawals(...)    ← LEER: historial completo (view, gratis)
+    function currentBalance(...)    ← LEER: balance real del contrato (view, gratis)
 }
 ```
 
@@ -120,28 +146,68 @@ contract Guestbook {
 **`struct`** — como un objeto de JS, pero con tipos:
 
 ```solidity
-struct Entry {
-    address author;    // dirección de wallet (tipo nativo de Solidity)
-    string message;
-    uint256 timestamp; // entero sin signo de 256 bits
+struct Donation {
+    address donor;      // dirección de quien donó
+    uint256 amount;      // cuánto ETH (en wei)
+    string message;      // mensaje opcional
+    uint256 timestamp;    // cuándo (segundos unix)
 }
 ```
 
-**Variables de estado** — todo lo declarado a nivel de contrato (como `entries`) se guarda **en la blockchain**. Escribir ahí es lo que cuesta gas; por eso los contratos guardan lo mínimo necesario.
+**Variables de estado** — todo lo declarado a nivel de contrato (`donations`, `totalDonated`, etc.) se guarda **en la blockchain**. Escribir ahí es lo que cuesta gas.
 
-**`msg.sender`** — variable global: la dirección de quien llama la función. Es imposible de falsificar (viene de la firma criptográfica de la transacción). Así sabemos quién escribió cada mensaje sin pedir login ni contraseña.
-
-**`require(condición, "mensaje")`** — si la condición es falsa, la transacción entera se **revierte**: es como si nunca hubiera pasado, y el usuario ve el mensaje de error.
+**`payable`** — marca una función que puede recibir ETH junto con la llamada:
 
 ```solidity
-require(bytes(_message).length > 0, "El mensaje no puede estar vacio");
+function donate(string calldata _message) external payable {
+    require(msg.value > 0, "La donacion debe ser mayor a 0");
+    ...
+}
 ```
 
-**`event` + `emit`** — los eventos son "logs" baratos que quedan registrados en la blockchain. El frontend se suscribe a ellos para actualizarse en tiempo real cuando alguien más firma.
+`msg.value` es cuánto ETH te mandaron junto con la transacción.
+
+**`immutable`** — la dirección de la ONG se fija **una sola vez**, en el `constructor`, y ya no se puede cambiar — ni la propia ONG puede redirigir los fondos después:
+
+```solidity
+address public immutable ngo;
+
+constructor(string memory _causeName) {
+    ngo = msg.sender; // quien despliega el contrato queda registrado como la ONG
+    causeName = _causeName;
+}
+```
+
+**`modifier onlyNGO`** — un "filtro" reusable que rechaza la transacción si quien llama no es la ONG:
+
+```solidity
+modifier onlyNGO() {
+    require(msg.sender == ngo, "Solo la ONG puede retirar fondos");
+    _;
+}
+
+function withdraw(uint256 _amount, string calldata _reason) external onlyNGO {
+    ...
+}
+```
+
+Es lo mismo que un `require` al principio de la función, pero declarado una vez y reusable en varias funciones.
+
+**Transferencia real de ETH** — así es como un contrato le manda ETH de verdad a una dirección (el patrón recomendado en Solidity moderno):
+
+```solidity
+(bool success, ) = payable(ngo).call{value: _amount}("");
+require(success, "La transferencia fallo");
+```
+
+**`event` + `emit`** — los eventos son "logs" baratos que quedan registrados en la blockchain. El frontend se suscribe a ellos para actualizarse en tiempo real, y cualquiera puede leerlos después desde Etherscan:
+
+```solidity
+event FundsWithdrawn(uint256 amount, string reason, uint256 timestamp);
+emit FundsWithdrawn(_amount, _reason, block.timestamp);
+```
 
 **`view`** — marca funciones de solo lectura. Llamarlas no crea transacción → gratis siempre.
-
-**`calldata` / `memory`** — indican dónde vive un dato temporalmente. Regla práctica: `calldata` para parámetros de entrada (más barato), `memory` para valores de retorno.
 
 ### Compilar
 
@@ -161,66 +227,67 @@ Antes de desplegar nada, se prueba. En blockchain esto es aún más importante q
 npx hardhat test
 ```
 
-Abre `test/Guestbook.test.js`. Puntos clave:
+Abre `test/Donations.test.js`. Corren en una blockchain efímera en memoria — cada test empieza desde cero, no necesitan ningún nodo corriendo, no cuestan nada.
 
-**El fixture** — despliega el contrato en una blockchain *en memoria* y guarda una "foto" del estado. Cada test parte de esa foto limpia:
+Puntos clave del archivo:
+
+**El fixture** — despliega el contrato una vez por test, con cuentas de prueba que Hardhat regala automáticamente:
 
 ```js
 async function deployFixture() {
-  const [owner, visitor1, visitor2] = await ethers.getSigners(); // cuentas de prueba
-  const Guestbook = await ethers.getContractFactory("Guestbook");
-  const guestbook = await Guestbook.deploy();
-  return { guestbook, owner, visitor1, visitor2 };
+  const [ngo, donor1, donor2, extraño] = await ethers.getSigners();
+  const Donations = await ethers.getContractFactory("TransparentDonations");
+  const donations = await Donations.connect(ngo).deploy("Comedores Comunitarios Bogotá");
+  return { donations, ngo, donor1, donor2, extraño };
 }
 ```
 
-**Firmar como distintas cuentas** — `.connect(visitor1)` hace que la siguiente llamada la firme esa wallet:
+**Probar que algo funciona:**
 
 ```js
-await guestbook.connect(visitor1).signGuestbook("Hola blockchain!");
+await donations.connect(donor1).donate("apoyo", { value: ethers.parseEther("1.0") });
+expect(await donations.totalDonated()).to.equal(ethers.parseEther("1.0"));
 ```
 
-**Probar que algo falla** — tan importante como probar que funciona:
+**Probar que algo falla — tan importante como probar que funciona.** Este es el test que demuestra en código la garantía de seguridad central de la dapp:
 
 ```js
-await expect(guestbook.signGuestbook("")).to.be.revertedWith("El mensaje no puede estar vacio");
+await expect(
+  donations.connect(extraño).withdraw(ethers.parseEther("0.1"), "intento no autorizado")
+).to.be.revertedWith("Solo la ONG puede retirar fondos");
 ```
 
-Resultado esperado: **7 tests en verde** ✔ (despliegue, escritura, orden, contador por autor, evento, y los dos rechazos).
+Resultado esperado: **12 tests en verde** ✔ (despliegue, donaciones, validaciones, y todo el bloque de retiros — incluyendo que un donante NO puede retirar).
 
 ---
 
 ## Parte 4 — Por qué no hay un paso de "blockchain local" aquí
 
-En muchos tutoriales de dapps, el siguiente paso sería levantar un nodo local (`npx hardhat node`) y desplegar ahí antes de tocar una testnet pública. Este proyecto lo tuvo al principio, y lo quitamos a propósito — vale la pena explicar por qué, porque es una lección real de por qué duele mezclar entornos.
+En muchos tutoriales de dapps, el siguiente paso sería levantar un nodo local (`npx hardhat node`) y desplegar ahí antes de tocar una testnet pública. Este proyecto lo tuvo al principio, y se quitó a propósito — vale la pena explicar por qué, porque es una lección real de por qué duele mezclar entornos.
 
-El problema: `scripts/deploy.js` guardaba la dirección del contrato en `frontend/contract-address.json`, y esa función no distinguía de qué red venía el despliegue. Cada vez que alguien probaba algo contra el nodo local para explorar sin gastar ETH real, ese archivo se sobrescribía con la dirección local — pisando silenciosamente la dirección de Sepolia que el sitio público (Netlify) necesitaba. El síntoma: el sitio en vivo, que tus compañeros ya estaban usando, de repente decía `"network": "localhost"` y dejaba de funcionar para ellos, sin ningún error visible.
+El problema: el script de despliegue guardaba la dirección del contrato en `frontend/donations-address.json`, sin distinguir de qué red venía el despliegue. Cada vez que alguien probaba algo contra un nodo local para explorar sin gastar ETH real, ese archivo se sobrescribía con la dirección local — pisando silenciosamente la dirección de Sepolia que el sitio público (Netlify) necesitaba. El síntoma: el sitio en vivo, que la gente ya estaba usando, de repente dejaba de funcionar, sin ningún error visible.
 
 La solución que quedó en el proyecto tiene dos partes:
 
-1. **`npx hardhat test` reemplaza por completo la necesidad de un nodo local.** Las pruebas ya corren en una blockchain efímera en memoria (la incluida por defecto en Hardhat), prueban exactamente el mismo código, y no tocan ningún archivo — es estrictamente más seguro y más rápido que un nodo persistente.
-2. **Los scripts de despliegue ahora se niegan a escribir el archivo del frontend a menos que la red sea literalmente `"sepolia"`.** Así, aunque alguien vuelva a intentar un despliegue de prueba contra otra red, el sitio público queda protegido — el peor caso es que el script no actualice nada, nunca que lo rompa.
-
-Si en algún momento quieres explorar interactivamente contra una red local (por ejemplo para probar muchas transacciones sin límite de faucet), puedes volver a levantar `npx hardhat node` en una terminal y correr `npx hardhat run scripts/deploy.js --network localhost` — funciona igual que antes, solo que ahora **no tocará** `frontend/contract-address.json`, así que no hay forma de que rompa el sitio público por accidente.
+1. **`npx hardhat test` reemplaza por completo la necesidad de un nodo local.** Las pruebas ya corren en una blockchain efímera en memoria, prueban exactamente el mismo código, y no tocan ningún archivo.
+2. **El script de despliegue se niega a escribir el archivo del frontend a menos que la red sea literalmente `"sepolia"`.** Así, aunque alguien intente un despliegue de prueba contra otra red, el sitio público queda protegido.
 
 ---
 
 ## Parte 5 — El frontend
 
-Está en `frontend/`: un `index.html` con los estilos y un `app.js` con la lógica. Sin frameworks — así se ve claramente qué hace cada pieza.
-
-> 📌 Nota de la Parte 9: una vez que agregamos la segunda dapp (Donaciones), decidimos que fuera la portada del sitio — por eso hoy el archivo del Guestbook se llama `guestbook.html`, no `index.html`. Todo lo que se explica aquí abajo sigue aplicando igual, solo cambia el nombre del archivo.
+Está en `frontend/`: un `index.html` con los estilos y un `donaciones.js` con la lógica. Sin frameworks — así se ve claramente qué hace cada pieza.
 
 ### Las tres piezas para hablar con un contrato desde el navegador
 
 ```js
-// 1. La dirección del contrato — se lee sola de contract-address.json
-//    (ese archivo lo escribe scripts/deploy.js en cada despliegue, así
-//    nunca hay que copiar/pegar una dirección a mano)
-const { address: CONTRACT_ADDRESS } = await fetch("contract-address.json").then(r => r.json());
+// 1. La dirección del contrato — se lee sola de donations-address.json
+//    (ese archivo lo escribe scripts/deploy-donations.js en cada despliegue
+//    a Sepolia, así nunca hay que copiar/pegar una dirección a mano)
+const { address: CONTRACT_ADDRESS } = await fetch("donations-address.json").then(r => r.json());
 
 // 2. El ABI: qué funciones tiene el contrato
-const ABI = ["function signGuestbook(string _message) external", ...];
+const ABI = ["function donate(string _message) external payable", ...];
 
 // 3. ethers.js + MetaMask
 const provider = new ethers.BrowserProvider(window.ethereum); // MetaMask inyecta window.ethereum
@@ -231,15 +298,15 @@ const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
 Con eso, llamar al contrato es casi como llamar una función JS:
 
 ```js
-await contract.getEntries();              // leer: gratis, instantáneo
-const tx = await contract.signGuestbook("hola"); // escribir: abre MetaMask
-await tx.wait();                          // esperar a que se mine
+await contract.currentBalance();                                          // leer: gratis, instantáneo
+const tx = await contract.donate("hola", { value: ethers.parseEther("0.01") }); // escribir: abre MetaMask
+await tx.wait();                                                          // esperar a que se mine
 ```
 
 ### Instalar MetaMask
 
 1. Instala la extensión: https://metamask.io (gratis).
-2. No hace falta agregar ninguna red a mano para Sepolia — la propia página, al conectar la wallet, detecta si no estás en Sepolia y te ofrece cambiarte (o agregarla) automáticamente (ver `ensureSepoliaNetwork()` en `app.js` / `donaciones.js`).
+2. No hace falta agregar ninguna red a mano — la propia página, al conectar la wallet, detecta si no estás en Sepolia y te ofrece cambiarte (o agregarla) automáticamente (ver `ensureSepoliaNetwork()` en `donaciones.js`).
 
 ### Servir la página (para probarla en tu compu antes de publicarla)
 
@@ -250,11 +317,24 @@ cd frontend
 npx serve .        # o: python3 -m http.server 8000
 ```
 
-Esto **no despliega nada nuevo** ni levanta una blockchain — solo sirve los archivos estáticos que ya apuntan al contrato real en Sepolia. Abre la URL que te indique (ej. `http://localhost:3000`), conecta la wallet, escribe un mensaje y firma con ETH de prueba de Sepolia. 🎉
+Esto **no despliega nada nuevo** ni levanta una blockchain — solo sirve los archivos estáticos que ya apuntan al contrato real en Sepolia. Abre la URL que te indique (ej. `http://localhost:3000`), conecta la wallet, dona con ETH de prueba de Sepolia. 🎉
+
+### El panel de la ONG
+
+Si la wallet conectada es la misma que desplegó el contrato, aparece un panel extra para retirar fondos con una razón obligatoria:
+
+```js
+const ngoAddress = await contract.ngo();
+if (connectedAddress.toLowerCase() === ngoAddress.toLowerCase()) {
+  $("ngoPanel").classList.remove("hidden");
+}
+```
+
+Esto es **solo cosmético** — el contrato mismo rechazaría un `withdraw()` de cualquier otra cuenta sin importar lo que muestre la página. La seguridad real vive en el contrato, no en el frontend.
 
 ### Detalle de seguridad incluido
 
-En `app.js` hay una función `escapeHtml()`: **nunca** insertes texto escrito por usuarios directamente en el HTML, porque alguien podría firmar el libro con `<script>...</script>` y ejecutar código en el navegador de los demás visitantes (ataque XSS). Esto aplica a cualquier app web, no solo dapps.
+En `donaciones.js` hay una función `escapeHtml()`: **nunca** insertes texto escrito por usuarios directamente en el HTML, porque alguien podría donar con un mensaje `<script>...</script>` y ejecutar código en el navegador de los demás visitantes (ataque XSS). Esto aplica a cualquier app web, no solo dapps.
 
 ---
 
@@ -262,26 +342,23 @@ En `app.js` hay una función `escapeHtml()`: **nunca** insertes texto escrito po
 
 ```
 ┌─────────────────────┐        ┌──────────────────────┐
-│  frontend (HTML/JS) │        │ blockchain local     │
-│                     │        │ (npx hardhat node)   │
+│  frontend (HTML/JS) │        │   Sepolia (testnet)  │
+│                     │        │                      │
 │  ethers.js          │  RPC   │                      │
 │  ┌───────────────┐  │ ─────► │  ┌────────────────┐  │
-│  │   MetaMask    │  │ firma  │  │ Guestbook.sol  │  │
-│  │ (tu wallet)   │  │  tx    │  │ (desplegado en │  │
-│  └───────────────┘  │        │  │  0x5FbD...)    │  │
-└─────────────────────┘        │  └────────────────┘  │
-                               └──────────────────────┘
+│  │   MetaMask    │  │ firma  │  │ Donations.sol  │  │
+│  │ (tu wallet)   │  │  tx    │  │ (desplegado)   │  │
+│  └───────────────┘  │        │  └────────────────┘  │
+└─────────────────────┘        └──────────────────────┘
 
-Escribir: frontend → MetaMask firma → transacción → se mina → estado cambia
-Leer:     frontend → llamada view → respuesta inmediata (sin firma, sin gas)
-Eventos:  contrato emite NewEntry → frontend suscrito se actualiza solo
+Donar/retirar: frontend → MetaMask firma → transacción → se mina → estado cambia
+Leer:          frontend → llamada view → respuesta inmediata (sin firma, sin gas)
+Eventos:       contrato emite NewDonation/FundsWithdrawn → frontend se actualiza solo
 ```
 
 ---
 
-## Parte 7 — Publicar para que tus compañeros accedan (todo gratis)
-
-Esta parte cubre exactamente lo que necesitas para un trabajo en equipo: el contrato en una red **pública** (Sepolia) y la página web en una **URL pública** (Netlify Drop), sin gastar nada.
+## Parte 7 — Publicar para que otros accedan (todo gratis)
 
 ### 7.1 — Crear una wallet dedicada SOLO para desplegar
 
@@ -293,16 +370,16 @@ Esta parte cubre exactamente lo que necesitas para un trabajo en equipo: el cont
 
 ### 7.2 — Conseguir ETH de prueba (faucet)
 
-1. Ve a https://cloud.google.com/application/web3/faucet/ethereum/sepolia (ya tienes esa página abierta).
+1. Ve a https://cloud.google.com/application/web3/faucet/ethereum/sepolia
 2. Pega la dirección de tu cuenta `deployer-testnet` y pide los fondos.
-3. Espera uno o dos minutos y verifica en MetaMask (cambia la red a Sepolia, ver más abajo) que llegó el ETH de prueba.
+3. Espera uno o dos minutos y verifica en MetaMask (cambia la red a Sepolia) que llegó el ETH de prueba.
 
-> Si ese faucet te pide una cuenta/reputación mínima y no te deja, alternativas: https://sepoliafaucet.com o el faucet de Alchemy en su dashboard.
+> Ese faucet regala una vez por cuenta/dispositivo cada 24 horas. Si necesitas más antes de eso, alternativas: https://sepoliafaucet.com o el faucet de Alchemy en su dashboard.
 
 ### 7.3 — Obtener tu URL de RPC en Alchemy
 
-1. Entra a tu app en https://dashboard.alchemy.com/apps/ohize6kah769m3vj (la que ya creaste).
-2. Confirma que la red configurada sea **Ethereum → Sepolia** (si tu app quedó en otra red, crea una app nueva y elige Sepolia).
+1. Entra a tu app en https://dashboard.alchemy.com
+2. Confirma que la red configurada sea **Ethereum → Sepolia**.
 3. Click en **"API Key"** o **"View Key"** → copia la URL HTTPS. Se ve así:
    ```
    https://eth-sepolia.g.alchemy.com/v2/TU_API_KEY
@@ -310,14 +387,12 @@ Esta parte cubre exactamente lo que necesitas para un trabajo en equipo: el cont
 
 ### 7.4 — Configurar el proyecto localmente (en TU computador)
 
-Este paso es importante hacerlo en tu máquina, no en un chat, porque vas a escribir una llave privada. El proyecto ya está listo para esto — solo falta tu archivo `.env`.
-
 ```bash
-cd guestbook-dapp
+cd donaciones-dapp
 cp .env.example .env
 ```
 
-> ⚠️ Este paso es solo la **primera vez**. Una vez que tu `.env` ya tiene tu URL y tu llave, no lo vuelvas a correr — `cp` sobrescribe el archivo destino, así que repetirlo borraría lo que ya configuraste. El mismo `.env` sirve para desplegar el Guestbook, Donaciones, o cualquier otro contrato que agregues después.
+> ⚠️ Este paso es solo la **primera vez**. Una vez que tu `.env` ya tiene tu URL y tu llave, no lo vuelvas a correr — `cp` sobrescribe el archivo destino, así que repetirlo borraría lo que ya configuraste.
 
 Abre `.env` con tu editor y rellena las dos líneas:
 
@@ -330,10 +405,8 @@ Para obtener la llave privada: MetaMask → selecciona la cuenta `deployer-testn
 
 > ⚠️ **Reglas de oro con `.env`:**
 > - Nunca lo subas a git (ya está en `.gitignore`, pero verifícalo con `git status` antes de un `git add .`).
-> - Nunca pegues su contenido en un chat, ticket, correo o mensaje a un compañero.
+> - Nunca pegues su contenido en un chat, ticket, correo o mensaje.
 > - Es solo para tu cuenta `deployer-testnet` — si por error se filtrara, lo peor que pasa es que alguien gaste tu ETH de prueba (sin valor real). Por eso NUNCA la reutilices en una cuenta con fondos reales.
-
-Instala la dependencia que falta (dotenv, para leer el `.env`):
 
 ```bash
 npm install
@@ -342,64 +415,68 @@ npm install
 ### 7.5 — Desplegar en Sepolia
 
 ```bash
-npx hardhat run scripts/deploy.js --network sepolia
+npx hardhat run scripts/deploy-donations.js --network sepolia
 ```
 
 Verás algo como:
 
 ```
 Red: sepolia
-Desplegando con la cuenta: 0xTU_DEPLOYER...
+Desplegando con la cuenta (será la ONG): 0xTU_DEPLOYER...
 Balance de esa cuenta: 0.05 ETH
-✅ Guestbook desplegado en: 0xABC123...
-📝 Dirección guardada en frontend/contract-address.json
-🔍 Ver el contrato: https://sepolia.etherscan.io/address/0xABC123...
+📤 Transacción enviada: 0x...
+📍 Dirección del contrato: 0x...
+✅ Confirmado en la red.
+📝 Dirección guardada en frontend/donations-address.json
+🔍 Ver: https://sepolia.etherscan.io/address/0x...
 ```
 
-Abre ese link de Etherscan: ahí está tu contrato, público, verificable por cualquiera. `contract-address.json` en `frontend/` ya quedó actualizado automáticamente — no hay que tocar `app.js`.
+Abre ese link de Etherscan: ahí está tu contrato, público, verificable por cualquiera. `donations-address.json` en `frontend/` ya quedó actualizado automáticamente — no hay que tocar `donaciones.js`.
 
 ### 7.6 — Publicar el frontend con Netlify Drop
 
 Netlify Drop te da una URL pública en segundos, sin crear cuenta ni usar la terminal:
 
 1. Ve a https://app.netlify.com/drop
-2. Arrastra la carpeta `frontend/` completa — hoy incluye `index.html` (Donaciones, la portada), `guestbook.html`, `donaciones.html`, `app.js`, `donaciones.js`, `contract-address.json` y `donations-address.json` — a la zona de "arrastra y suelta".
-3. En unos segundos te da una URL tipo `https://algo-al-azar.netlify.app` — **esa es la URL que compartes con tus compañeros.**
+2. Arrastra la carpeta `frontend/` completa (con `index.html`, `donaciones.js`, `donations-address.json`) a la zona de "arrastra y suelta".
+3. En unos segundos te da una URL tipo `https://algo-al-azar.netlify.app` — **esa es la URL que compartes.**
 
-> Si ya tienes un sitio de Netlify reclamado de un despliegue anterior, no hace falta un drop nuevo: entra a ese sitio en app.netlify.com → pestaña "Deploys" → arrastra la carpeta ahí para actualizarlo, misma URL de siempre.
+> Netlify asigna un nombre aleatorio. Si quieres uno más memorable, o que el sitio no expire, dale clic a **"Claim this site"** (gratis, sin tarjeta) — así queda permanente y puedes actualizarlo después desde la pestaña "Deploys" de ese mismo sitio, arrastrando la carpeta de nuevo, sin crear un link distinto cada vez.
 
-> Netlify asigna un nombre aleatorio. Si quieres uno más memorable (ej. `guestbook-equipo.netlify.app`), puedes crear una cuenta gratis después y renombrar el sitio desde "Site settings" — no es obligatorio para que funcione.
+### 7.7 — Lo que otros necesitan hacer
 
-### 7.7 — Lo que tus compañeros necesitan hacer
-
-Para que cualquiera use la dapp necesita, igual que tú:
+Para que cualquiera use la dapp necesita:
 
 1. Instalar MetaMask (gratis): https://metamask.io
-2. Tener algo de ETH de prueba de Sepolia en SU wallet (piden el suyo propio en el mismo faucet: https://cloud.google.com/application/web3/faucet/ethereum/sepolia) — solo para pagar el gas ficticio al firmar un mensaje. Leer el libro de visitas no necesita fondos.
-3. Abrir tu URL de Netlify y click en "Conectar wallet". La app detecta si MetaMask no está en Sepolia y le ofrece cambiar de red automáticamente (o agregarla si nunca la ha usado).
-
-Compárteles ese mini-instructivo junto con el link — así no tienen que leer toda esta guía.
+2. Tener algo de ETH de prueba de Sepolia en SU wallet (piden el suyo propio en el mismo faucet) — solo para donar o interactuar. Leer los totales no necesita fondos.
+3. Abrir la URL de Netlify y darle clic a "Conectar wallet". La app detecta si MetaMask no está en Sepolia y le ofrece cambiar de red automáticamente.
 
 ### 7.8 — Volver a desplegar más adelante
 
 Si cambias el contrato y quieres redesplegar:
 
 ```bash
-npx hardhat run scripts/deploy.js --network sepolia   # nueva dirección, se guarda sola
+npx hardhat run scripts/deploy-donations.js --network sepolia   # nueva dirección, se guarda sola
 ```
 
-Luego vuelve a arrastrar la carpeta `frontend/` a https://app.netlify.com/drop (si ya reclamaste el sitio con una cuenta, puedes conectarlo a un repo de git para que se actualice solo en cada cambio — opcional).
+Luego vuelve a arrastrar la carpeta `frontend/` al mismo sitio de Netlify ya reclamado (pestaña "Deploys"), o a un drop nuevo si aún no lo reclamaste.
+
+---
 
 ## Parte 8 — Siguientes pasos (todos gratis)
 
-### 1. Ideas para extender el Guestbook
+### 1. Ideas para extender la dapp
 
-- **Paginación:** `getEntries()` devuelve todo; con miles de entradas sería carísimo. Agrega `getEntries(uint offset, uint limit)`.
-- **Borrar tu propio mensaje:** agrega una función que verifique `msg.sender == entries[i].author`.
-- **Propinas:** que se pueda firmar enviando ETH (`payable`) y el dueño del contrato pueda retirarlo (aprenderás `modifier onlyOwner`).
+- **Meta de recaudación:** agregar `uint256 public goal` y mostrar una barra de progreso en el frontend.
+- **Varias causas en un solo contrato:** en vez de una ONG fija, una lista de causas, cada una con su propia wallet y sus propios totales.
+- **Retiros con múltiples firmas:** que un retiro necesite la aprobación de 2 de 3 personas (patrón "multisig") en vez de una sola wallet — más realista para una ONG de verdad.
 - **Frontend con framework:** migra a React + wagmi/viem, el stack más usado en producción.
 
-### 2. Recursos gratuitos recomendados
+### 2. Puntos de discusión para la clase
+
+El contrato garantiza que la *contabilidad* no se puede falsificar, pero la *razón* del retiro ("Compra de 200 almuerzos") sigue siendo un texto que la ONG declara — la blockchain no verifica que eso sea cierto en el mundo real. Es un buen momento para hablar de qué problemas SÍ resuelve blockchain (integridad de los registros) y cuáles NO resuelve por sí sola (honestidad de la información que se ingresa).
+
+### 3. Recursos gratuitos recomendados
 
 - **Solidity docs (español disponible):** https://docs.soliditylang.org
 - **CryptoZombies:** curso interactivo gratuito de Solidity — https://cryptozombies.io
@@ -409,71 +486,13 @@ Luego vuelve a arrastrar la carpeta `frontend/` a https://app.netlify.com/drop (
 
 ---
 
-## Parte 9 — Segunda dapp: Donaciones Transparentes
-
-Esta es una demo pensada para mostrar en clase **por qué** existe blockchain, más allá de "mover dinero entre computadoras". El problema real que resuelve: cuando donas a una ONG tradicional, tienes que **confiar** en que usan el dinero como dicen. Con este contrato, no hace falta confiar — se puede **verificar matemáticamente**.
-
-### El concepto central
-
-El contrato `contracts/Donations.sol` (`TransparentDonations`) lleva dos contadores públicos:
-
-```solidity
-uint256 public totalDonated;   // suma de todo lo donado, para siempre
-uint256 public totalWithdrawn; // suma de todo lo retirado, para siempre
-```
-
-Y una regla que es imposible de romper porque la garantiza el propio código, no una promesa:
-
-```
-totalDonated - totalWithdrawn == balance real del contrato
-```
-
-Cualquiera puede comprobar esa ecuación en Etherscan sin pedirle permiso a nadie. Y cada retiro (`withdraw`) exige una razón en texto (`_reason`) que queda grabada junto al monto y la fecha — la ONG no puede "sacar plata en silencio".
-
-### Conceptos nuevos que introduce (comparado con el Guestbook)
-
-- **`payable`**: marca una función que puede recibir ETH junto con la llamada. `msg.value` es cuánto te mandaron.
-- **`immutable`**: la dirección de la ONG (`ngo`) se fija una sola vez en el `constructor` y ya no se puede cambiar — ni la propia ONG puede redirigir los fondos después.
-- **`modifier onlyNGO`**: un "filtro" reusable que rechaza la transacción si quien llama no es la ONG. Lo mismo que `require`, pero declarado una vez y aplicado a varias funciones con `onlyNGO` en la firma.
-- **Transferencia real de ETH**: `payable(ngo).call{value: _amount}("")` — así es como un contrato le manda ETH de verdad a una dirección (el patrón recomendado en Solidity moderno, más seguro que `.transfer()`).
-
-### Probarlo
-
-```bash
-npx hardhat test
-```
-
-Fíjate especialmente en el test **"alguien que NO es la ONG no puede retirar"** — ese es el que demuestra en código la garantía de seguridad que estás explicando en la presentación.
-
-### Desplegarlo para la clase (Sepolia + Netlify)
-
-Exactamente el mismo proceso que ya hiciste con el Guestbook en la **Parte 7** — mismo `.env`, mismo faucet, mismo Netlify Drop. Solo cambia el script:
-
-```bash
-npx hardhat run scripts/deploy-donations.js --network sepolia
-```
-
-Esto guarda la dirección en `frontend/donations-address.json` (el Guestbook usa su propio `contract-address.json`, así que no se pisan entre sí). Luego arrastra la carpeta `frontend/` completa a Netlify Drop otra vez (o al mismo sitio ya reclamado, ver la nota de la Parte 7.6) — ya incluye las tres páginas: `index.html` (Donaciones, portada), `guestbook.html` y `donaciones.html`, todas enlazadas entre sí.
-
-Antes de la clase, prueba tú mismo el flujo con ETH de prueba: dona una cantidad pequeña desde una cuenta, y luego —conectando la wallet de la ONG (la misma que usaste para desplegar)— retira parte con una razón. Así tienes datos reales para mostrar en vivo, no una pantalla vacía.
-
-### Ideas para llevarlo más lejos
-
-- **Meta de recaudación:** agregar `uint256 public goal` y mostrar una barra de progreso en el frontend.
-- **Varias causas en un solo contrato:** en vez de una ONG fija, una lista de causas, cada una con su propia wallet y sus propios totales.
-- **Retiros con múltiples firmas:** que un retiro necesite la aprobación de 2 de 3 personas (patrón "multisig") en vez de una sola wallet — más realista para una ONG de verdad.
-- **Puntos de discusión para la clase:** el contrato garantiza que la *contabilidad* no se puede falsificar, pero la *razón* del retiro ("Compra de 200 almuerzos") sigue siendo un texto que la ONG declara — la blockchain no verifica que eso sea cierto en el mundo real. Es un buen momento para hablar de qué problemas SÍ resuelve blockchain (integridad de los registros) y cuáles NO resuelve por sí sola (honestidad de la información que se ingresa).
-
----
-
 ## Apéndice — Comandos de referencia rápida
 
 | Comando | Qué hace |
 |---|---|
-| `npx hardhat compile` | Compila los contratos → `artifacts/` |
-| `npx hardhat test` | Corre las 19 pruebas en la red efímera en memoria — gratis, sin wallet, sin tocar el frontend |
+| `npx hardhat compile` | Compila el contrato → `artifacts/` |
+| `npx hardhat test` | Corre las 12 pruebas en la red efímera en memoria — gratis, sin wallet, sin tocar el frontend |
 | `cd frontend && npx serve .` | Sirve la página web localmente (previsualiza el sitio de Sepolia antes de subirlo) |
 | `cp .env.example .env` | Crea tu archivo de configuración para Sepolia (⚠️ solo la primera vez — repetirlo borra tu .env ya configurado) |
-| `npx hardhat run scripts/deploy.js --network sepolia` | Despliega el Guestbook en la testnet pública Sepolia |
-| `npx hardhat run scripts/deploy-donations.js --network sepolia` | Despliega Donaciones en la testnet pública Sepolia |
-| Arrastra `frontend/` a https://app.netlify.com/drop | Publica ambas páginas en una URL pública gratis |
+| `npx hardhat run scripts/deploy-donations.js --network sepolia` | Despliega (o redespliega) en la testnet pública Sepolia |
+| Arrastra `frontend/` a https://app.netlify.com/drop | Publica el sitio en una URL pública gratis |
