@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guestbook — Libro de visitas on-chain</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #1a1d27;
+      --border: #2a2e3d;
+      --text: #e8eaf0;
+      --muted: #9aa0b0;
+      --accent: #6c8cff;
+      --accent-hover: #8aa4ff;
+      --ok: #4ade80;
+      --err: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    .container { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 1.6rem; margin-bottom: .25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: .95rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: .65rem 1.2rem;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    button:hover { background: var(--accent-hover); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem;
+      font-size: .95rem;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 80px;
+      margin-bottom: .75rem;
+    }
+    textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .account {
+      font-family: ui-monospace, monospace;
+      font-size: .85rem;
+      color: var(--muted);
+      word-break: break-all;
+    }
+    .status { font-size: .9rem; margin-top: .5rem; min-height: 1.2rem; }
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--err); }
+    .entry {
+      border-bottom: 1px solid var(--border);
+      padding: .9rem 0;
+    }
+    .entry:last-child { border-bottom: none; }
+    .entry .author {
+      font-family: ui-monospace, monospace;
+      font-size: .78rem;
+      color: var(--accent);
+    }
+    .entry .msg { margin: .35rem 0; font-size: 1rem; }
+    .entry .time { font-size: .78rem; color: var(--muted); }
+    .empty { color: var(--muted); text-align: center; padding: 1.5rem 0; }
+    .counter { font-size: .85rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📖 Libro de visitas on-chain</h1>
+    <p class="subtitle">Cada mensaje queda guardado para siempre en la blockchain.</p>
+    <p style="margin:-.5rem 0 1.5rem; font-size:.85rem;"><a href="index.html" style="color:#6c8cff;">💚 Ver la demo de Donaciones Transparentes →</a></p>
+
+    <!-- Paso 1: conectar la wallet -->
+    <div class="card">
+      <div class="row">
+        <button id="connectBtn">🦊 Conectar wallet</button>
+        <span class="account" id="account">No conectado</span>
+      </div>
+      <div class="status" id="connectStatus"></div>
+    </div>
+
+    <!-- Paso 2: firmar el libro -->
+    <div class="card">
+      <textarea id="message" maxlength="280" placeholder="Escribe tu mensaje (máx. 280 caracteres)..."></textarea>
+      <div class="row">
+        <button id="signBtn" disabled>✍️ Firmar el libro</button>
+        <span class="counter"><span id="charCount">0</span>/280</span>
+      </div>
+      <div class="status" id="signStatus"></div>
+    </div>
+
+    <!-- Paso 3: leer las entradas -->
+    <div class="card">
+      <div class="row">
+        <strong>Entradas (<span id="total">0</span>)</strong>
+        <button id="refreshBtn">🔄 Actualizar</button>
+      </div>
+      <div id="entries"><p class="empty">Conecta tu wallet para ver las entradas.</p></div>
+    </div>
+  </div>
+
+  <!-- ethers.js v6 desde CDN: la librería que conecta JS con la blockchain -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
