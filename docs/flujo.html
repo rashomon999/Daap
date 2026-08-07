@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flujo completo — Donaciones Transparentes (dapp)</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2e3d;
+    --text: #e8eaf0;
+    --muted: #9aa0b0;
+    --accent: #34d399;
+    --accent2: #6c8cff;
+    --warn: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 2.5rem 1rem 4rem;
+    line-height: 1.4;
+  }
+  .container { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin-bottom: .25rem; text-align: center; }
+  .subtitle { color: var(--muted); text-align: center; margin-bottom: 2.5rem; font-size: .95rem; }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin: 2.5rem 0 1.2rem;
+  }
+  .section-title .badge {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: .3rem .7rem;
+    border-radius: 20px;
+  }
+  .section-title.deploy .badge { background: #1e3a2f; color: var(--accent); }
+  .section-title.use .badge { background: #232a4a; color: var(--accent2); }
+  .section-title h2 { font-size: 1.1rem; }
+  .section-note { color: var(--muted); font-size: .85rem; margin-bottom: 1.2rem; }
+
+  .flow { display: flex; flex-direction: column; align-items: stretch; }
+  .step {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    display: flex;
+    gap: .9rem;
+    align-items: flex-start;
+  }
+  .step .num {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .8rem; font-weight: 700;
+  }
+  .deploy .step .num { background: var(--accent); color: #06281c; }
+  .use .step .num { background: var(--accent2); color: #fff; }
+  .step .content .title { font-weight: 600; font-size: .95rem; margin-bottom: .15rem; }
+  .step .content .desc { color: var(--muted); font-size: .85rem; }
+  .step .content code {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: .05rem .4rem;
+    font-size: .8rem;
+    font-family: ui-monospace, monospace;
+    color: var(--warn);
+  }
+  .arrow {
+    text-align: center;
+    color: var(--muted);
+    font-size: 1.1rem;
+    padding: .3rem 0;
+  }
+  .result {
+    margin-top: .5rem;
+    background: linear-gradient(135deg, #14291f, #16233f);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    text-align: center;
+    font-size: .9rem;
+  }
+  .result .addr {
+    display: block;
+    margin-top: .4rem;
+    font-family: ui-monospace, monospace;
+    font-size: .8rem;
+    color: var(--accent);
+    word-break: break-all;
+  }
+  .footer-note {
+    margin-top: 2.5rem;
+    padding: 1rem 1.2rem;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    font-size: .85rem;
+  }
+  .footer-note b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>💚 Flujo completo de la dapp — Donaciones Transparentes</h1>
+  <p class="subtitle">Un contrato en Sepolia + un frontend estático. Dos momentos distintos: cómo se creó (una sola vez) y cómo se usa (todas las veces que alguien quiera).</p>
+
+  <!-- PARTE A: DESPLIEGUE -->
+  <div class="section-title deploy">
+    <span class="badge">Parte A</span>
+    <h2>Cómo se creó — se hace UNA sola vez</h2>
+  </div>
+  <p class="section-note">Todo esto corre en tu computadora, con Hardhat, antes de que exista ninguna página web.</p>
+
+  <div class="flow">
+    <div class="step">
+      <div class="num">1</div>
+      <div class="content">
+        <div class="title">Escribes el contrato</div>
+        <div class="desc"><code>contracts/Donations.sol</code> — la lógica en Solidity: quién puede donar, quién puede retirar, qué queda registrado.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="step">
+      <div class="num">2</div>
+      <div class="content">
+        <div class="title">Hardhat compila</div>
+        <div class="desc"><code>npx hardhat compile</code> — traduce el Solidity a bytecode + ABI. 100% local, sin red.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="step">
+      <div class="num">3</div>
+      <div class="content">
+        <div class="title">Hardhat prueba</div>
+        <div class="desc"><code>npx hardhat test</code> — 12 pruebas automáticas sobre una blockchain falsa y temporal, solo en memoria. Se destruye al terminar.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="step">
+      <div class="num">4</div>
+      <div class="content">
+        <div class="title">Hardhat despliega</div>
+        <div class="desc"><code>npx hardhat run scripts/deploy-donations.js --network sepolia</code> — manda la transacción de creación hacia afuera.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="step">
+      <div class="num">5</div>
+      <div class="content">
+        <div class="title">Alchemy recibe la transacción</div>
+        <div class="desc">Tu nodo/puerta de entrada (la URL en <code>.env</code>) la retransmite a la red real de Sepolia.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="step">
+      <div class="num">6</div>
+      <div class="content">
+        <div class="title">La red Sepolia valida y registra</div>
+        <div class="desc">Miles de nodos peer-to-peer se ponen de acuerdo, el contrato queda en un bloque, para siempre.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="result">
+      ✅ El contrato ya existe en la blockchain — inmutable, público
+      <span class="addr">0x22136DecD908E0dd585164A3e9DA02eE4257b193</span>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="step">
+      <div class="num">7</div>
+      <div class="content">
+        <div class="title">Se guarda la dirección</div>
+        <div class="desc">El script escribe <code>frontend/donations-address.json</code> para que el frontend sepa a quién hablarle.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="step">
+      <div class="num">8</div>
+      <div class="content">
+        <div class="title">Subes <code>frontend/</code> a Netlify</div>
+        <div class="desc">Hosting estático gratuito — le da una URL pública a tu página, para que cualquiera la abra.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PARTE B: USO -->
+  <div class="section-title use">
+    <span class="badge">Parte B</span>
+    <h2>Cómo se usa — se repite cada vez, con cualquier persona</h2>
+  </div>
+  <p class="section-note">Esto le pasa a cada compañero de clase que entra a tu página — no toca Hardhat para nada.</p>
+
+  <div class="flow">
+    <div class="step">
+      <div class="num">1</div>
+      <div class="content">
+        <div class="title">Alguien abre tu URL de Netlify</div>
+        <div class="desc">Ve el frontend: <code>index.html</code> + <code>donaciones.js</code>, cargados desde Netlify.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="step">
+      <div class="num">2</div>
+      <div class="content">
+        <div class="title">Conecta su propia MetaMask</div>
+        <div class="desc">Su wallet es su identidad — nadie usa usuario/contraseña.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="step">
+      <div class="num">3</div>
+      <div class="content">
+        <div class="title">Dona (o, si es la ONG, retira)</div>
+        <div class="desc">Llena el formulario — cantidad de ETH de prueba, mensaje opcional.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="step">
+      <div class="num">4</div>
+      <div class="content">
+        <div class="title">MetaMask firma y envía</div>
+        <div class="desc">Usa el RPC público de Sepolia configurado en el navegador — la persona nunca ve ni escribe una llave privada ajena.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="step">
+      <div class="num">5</div>
+      <div class="content">
+        <div class="title">La red Sepolia valida y actualiza el contrato</div>
+        <div class="desc">Se suma a <code>totalDonated</code> o <code>totalWithdrawn</code>, queda en <code>getDonations()</code> / <code>getWithdrawals()</code>.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="step">
+      <div class="num">6</div>
+      <div class="content">
+        <div class="title">El frontend relee los datos</div>
+        <div class="desc"><code>donaciones.js</code> vuelve a preguntarle al contrato y actualiza los números y el historial en pantalla.</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="result" style="border-color: var(--accent2); background: linear-gradient(135deg, #16233f, #14291f);">
+      🔍 Cualquiera puede verificarlo todo, de forma independiente, en Etherscan
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <b>La idea central para tu clase:</b> la Parte A pasa una sola vez y es la que "publica" la verdad en la blockchain. La Parte B puede pasar miles de veces, con gente que ni se conoce entre sí, y nadie —ni siquiera tú como creador— puede alterar en secreto lo que ya quedó registrado.
+  </div>
+</div>
+</body>
+</html>
